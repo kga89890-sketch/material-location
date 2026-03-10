@@ -121,7 +121,7 @@
         </div>
     </div>
 
-    <script>
+<script>
         let allData = [];
         let filters = [];
         let searchTerm = "";
@@ -137,19 +137,19 @@
         const modalContent = document.getElementById('modalContent');
         const modalBody = document.getElementById('modalBody');
 
-        // Initialize Lucide icons
         lucide.createIcons();
 
-        // Fetch Data
+        // 1. 파일명을 default.json으로 변경 및 캐시 방지 로직 추가
         async function loadData() {
             try {
-                const response = await fetch('data.json');
-                if (!response.ok) throw new Error('Failed to fetch data.json');
+                // 뒤에 ?t=시간을 붙여서 파일 수정 시 브라우저가 옛날 데이터를 보여주는 것을 방지합니다.
+                const response = await fetch('default.json?t=' + new Date().getTime());
+                if (!response.ok) throw new Error('Failed to fetch default.json');
                 allData = await response.json();
                 render();
             } catch (error) {
                 console.error('Error loading data:', error);
-                tableBody.innerHTML = `<tr><td colspan="7" class="px-4 py-12 text-center text-rose-500">데이터를 불러오는 데 실패했습니다. (data.json 파일을 확인해주세요)</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="px-4 py-12 text-center text-rose-500">데이터를 불러오는 데 실패했습니다. (default.json 파일을 확인해주세요)</td></tr>`;
                 cardView.innerHTML = `<div class="px-4 py-12 text-center text-rose-500">데이터를 불러오는 데 실패했습니다.</div>`;
             }
         }
@@ -158,54 +158,52 @@
             const q = searchTerm.trim().toLowerCase();
             let result = [...allData];
 
-            // Apply active filters (AND logic)
             if (filters.length > 0) {
                 result = result.filter(row => {
                     return filters.every(filter => {
                         if (filter.column === 'all') {
                             return Object.values(row).some(val => 
-                                String(val).toLowerCase().includes(filter.value.toLowerCase())
+                                String(val || '').toLowerCase().includes(filter.value.toLowerCase())
                             );
                         } else {
                             const val = row[filter.column];
-                            return (val ? String(val) : '').toLowerCase().includes(filter.value.toLowerCase());
+                            return String(val || '').toLowerCase().includes(filter.value.toLowerCase());
                         }
                     });
                 });
             }
 
-            // Apply current search term
             if (q) {
                 const col = searchColumn.value;
                 result = result.filter(row => {
                     if (col !== 'all') {
                         const val = row[col];
-                        return (val ? String(val) : '').toLowerCase().includes(q);
+                        return String(val || '').toLowerCase().includes(q);
                     }
                     return Object.values(row).some(val => 
-                        String(val).toLowerCase().includes(q)
+                        String(val || '').toLowerCase().includes(q)
                     );
                 });
             }
 
-            // Render Table
+            // 2. 렌더링 시 숫자 데이터(moq 등) 예외 처리 강화
             if (result.length > 0) {
                 tableBody.innerHTML = result.map((row, idx) => `
-                    <tr class="hover:bg-indigo-50/50 cursor-pointer transition-colors" onclick="showDetail(${idx}, 'table')">
+                    <tr class="hover:bg-indigo-50/50 cursor-pointer transition-colors" onclick="showDetail(${idx})">
                         <td class="px-4 py-4 text-sm font-medium text-stone-900 whitespace-nowrap">${row.LOCATION || ''}</td>
                         <td class="px-4 py-4 text-sm text-stone-600 whitespace-nowrap font-mono">${row.ERP_NO || ''}</td>
                         <td class="px-4 py-4 text-sm text-stone-600 min-w-[200px]">${row.NAME || ''}</td>
                         <td class="px-4 py-4 text-sm text-stone-600 whitespace-nowrap">${row.ERP_SPEC || ''}</td>
                         <td class="px-4 py-4 text-sm text-stone-600 whitespace-nowrap">${row.LABEL_SPEC || ''}</td>
                         <td class="px-4 py-4 text-sm text-stone-600 whitespace-nowrap">${row.Maker || ''}</td>
-                        <td class="px-4 py-4 text-sm text-stone-600 whitespace-nowrap">${row.moq ? row.moq.toLocaleString() : ''}</td>
+                        <td class="px-4 py-4 text-sm text-stone-600 whitespace-nowrap">${row.moq ? Number(row.moq).toLocaleString() : '0'}</td>
                     </tr>
                 `).join('');
 
                 cardView.innerHTML = result.map((row, idx) => `
-                    <div class="p-4 active:bg-stone-100 cursor-pointer transition-colors space-y-2" onclick="showDetail(${idx}, 'card')">
+                    <div class="p-4 active:bg-stone-100 cursor-pointer transition-colors space-y-2" onclick="showDetail(${idx})">
                         <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">${row.LOCATION || ''}</span>
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">${row.LOCATION || 'N/A'}</span>
                             <span class="text-xs font-mono text-stone-400">${row.ERP_NO || ''}</span>
                         </div>
                         <h3 class="text-sm font-semibold text-stone-900 leading-tight">${row.NAME || 'No Name'}</h3>
@@ -213,19 +211,18 @@
                             <div class="flex items-center gap-1"><span class="font-bold text-stone-400">SPEC:</span><span>${row.ERP_SPEC || '-'}</span></div>
                             <div class="flex items-center gap-1"><span class="font-bold text-stone-400">LABEL:</span><span>${row.LABEL_SPEC || '-'}</span></div>
                             <div class="flex items-center gap-1"><span class="font-bold text-stone-400">Maker:</span><span>${row.Maker || '-'}</span></div>
-                            <div class="flex items-center gap-1"><span class="font-bold text-stone-400">MOQ:</span><span>${row.moq ? row.moq.toLocaleString() : '0'}</span></div>
+                            <div class="flex items-center gap-1"><span class="font-bold text-stone-400">MOQ:</span><span>${row.moq ? Number(row.moq).toLocaleString() : '0'}</span></div>
                         </div>
                     </div>
                 `).join('');
             } else {
-                tableBody.innerHTML = `<tr><td colspan="7" class="px-4 py-12 text-center text-stone-400">검색 결과가 없습니다.</td></tr>`;
+                const emptyMsg = `<tr><td colspan="7" class="px-4 py-12 text-center text-stone-400">검색 결과가 없습니다.</td></tr>`;
+                tableBody.innerHTML = emptyMsg;
                 cardView.innerHTML = `<div class="px-4 py-12 text-center text-stone-400">검색 결과가 없습니다.</div>`;
             }
 
-            // Store result for detail view
             window.currentResult = result;
 
-            // Render Chips
             if (filters.length > 0) {
                 filterChips.classList.remove('hidden');
                 filterChips.innerHTML = filters.map(f => `
@@ -245,6 +242,7 @@
             }
         }
 
+        // 3. 필터 추가 시 검색어 자동 초기화 및 포커스 유지
         function addFilter() {
             const val = searchInput.value.trim();
             if (!val) return;
@@ -254,8 +252,10 @@
                 value: val
             });
             searchInput.value = "";
+            searchTerm = ""; // 검색어 변수도 초기화
             clearSearch.classList.add('hidden');
             render();
+            searchInput.focus();
         }
 
         window.removeFilter = (id) => {
@@ -274,7 +274,7 @@
                 <div class="flex flex-col border-b border-stone-50 pb-3 last:border-0">
                     <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">${key}</span>
                     <span class="text-sm md:text-base text-stone-800 break-words font-medium">
-                        ${typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                        ${value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value || '-')}
                     </span>
                 </div>
             `).join('');
@@ -296,16 +296,15 @@
 
         searchInput.addEventListener('input', (e) => {
             searchTerm = e.target.value;
-            if (searchTerm) {
-                clearSearch.classList.remove('hidden');
-            } else {
-                clearSearch.classList.add('hidden');
-            }
+            clearSearch.classList.toggle('hidden', !searchTerm);
             render();
         });
 
         searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') addFilter();
+            if (e.key === 'Enter') {
+                e.preventDefault(); // 엔터 시 폼 제출 방지
+                addFilter();
+            }
         });
 
         clearSearch.addEventListener('click', () => {
@@ -313,6 +312,7 @@
             searchTerm = "";
             clearSearch.classList.add('hidden');
             render();
+            searchInput.focus();
         });
 
         addFilterBtn.addEventListener('click', addFilter);
@@ -322,7 +322,6 @@
             if (e.target === detailModal) closeDetail();
         });
 
-        // Initial Load
         loadData();
     </script>
 </body>
